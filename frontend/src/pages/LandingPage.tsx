@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, MapPin, CheckCircle, AlertTriangle, Users, BarChart3, Clock, Sparkles } from 'lucide-react';
+import { ArrowRight, MapPin, CheckCircle, AlertTriangle, Users, BarChart3, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 

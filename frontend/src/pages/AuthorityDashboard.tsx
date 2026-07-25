@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -172,7 +171,7 @@ export const AuthorityDashboard = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {categoryData.map((entry, index) => (
+                      {categoryData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>

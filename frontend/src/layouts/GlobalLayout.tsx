@@ -1,6 +1,5 @@
-import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
-import { Menu, Bell, User, MapPin } from 'lucide-react';
+import { Menu, Bell, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingChatbot } from '../components/shared/FloatingChatbot';
 

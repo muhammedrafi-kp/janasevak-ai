@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { GlobalLayout } from '../layouts/GlobalLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';

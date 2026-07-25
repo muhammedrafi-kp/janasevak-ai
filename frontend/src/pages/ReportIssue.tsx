@@ -1,260 +1,163 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '../components/ui/card';
+import { useState } from 'react';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, LoaderCircle, MapPin, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { MapPin, Camera, Upload, CheckCircle2, ChevronRight, ChevronLeft, Bot, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '../components/ui/card';
+import { ISSUE_CATEGORY_OPTIONS, MAX_DESCRIPTION_LENGTH } from '../features/report-issue/constants';
+import { AttachmentUploader } from '../features/report-issue/components/AttachmentUploader';
+import { LocationPicker } from '../features/report-issue/components/LocationPicker';
+import { ReportProgress } from '../features/report-issue/components/ReportProgress';
+import { useReportAttachments } from '../features/report-issue/hooks/useReportAttachments';
+import { submitReportDraft } from '../features/report-issue/services/reportIssue.service';
+import type { IssueCategory, LocationSelection, ReportDraft } from '../features/report-issue/types';
+
+type ReportStep = 1 | 2 | 3 | 4;
 
 export const ReportIssue = () => {
-  const [step, setStep] = useState(1);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanComplete, setScanComplete] = useState(false);
-  const navigate = useNavigate();
+  const [step, setStep] = useState<ReportStep>(1);
+  const [category, setCategory] = useState<IssueCategory | null>(null);
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState<LocationSelection | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { attachments, addFiles, removeAttachment, resetAttachments, isScanning } = useReportAttachments();
 
-  const handleNext = () => setStep(prev => Math.min(prev + 1, 4));
-  const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
+  const addAttachments = (files: File[]) => {
+    const result = addFiles(files);
+    setAttachmentError(result.error);
+  };
 
-  const simulateScan = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      setScanComplete(true);
-    }, 3000);
+  const selectLocation = (selection: LocationSelection) => {
+    setLocation(selection);
+    setLocationError(null);
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Your browser does not support location services. Please select a point on the map.');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        selectLocation({ lat, lng, label: `Current location: ${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+        setIsLocating(false);
+      },
+      () => {
+        setLocationError('We could not get your location. Check permission or choose a point on the map.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const canContinueFromDetails = Boolean(category && description.trim() && attachments.length > 0 && !isScanning);
+
+  const goToNextStep = () => {
+    if (step === 1) {
+      if (!canContinueFromDetails) {
+        setAttachmentError(isScanning
+          ? 'Please wait for image analysis to finish.'
+          : 'Select a category, add at least one image, and describe the issue.');
+        return;
+      }
+      setAttachmentError(null);
+      setStep(2);
+      return;
+    }
+
+    if (step === 2) {
+      if (!location) {
+        setLocationError('Choose the issue location on the map or use your current location.');
+        return;
+      }
+      setStep(3);
+    }
+  };
+
+  const submit = async () => {
+    if (!category || !location || !description.trim()) return;
+
+    const draft: ReportDraft = {
+      category,
+      description: description.trim(),
+      attachments,
+      location,
+      aiAnalysis: { suggestedCategory: category, source: 'frontend-demo' },
+    };
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await submitReportDraft(draft);
+      setStep(4);
+    } catch {
+      setSubmitError('The report could not be prepared. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reset = () => {
+    resetAttachments();
+    setCategory(null);
+    setDescription('');
+    setLocation(null);
+    setAttachmentError(null);
+    setLocationError(null);
+    setSubmitError(null);
+    setStep(1);
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Report an Issue</h1>
-        <p className="text-slate-500 mt-2">Help us keep the city clean and safe.</p>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="flex items-center justify-between mb-8 relative">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 dark:bg-slate-800 -z-10 rounded-full"></div>
-        <div 
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary -z-10 rounded-full transition-all duration-500"
-          style={{ width: `${((step - 1) / 3) * 100}%` }}
-        ></div>
-        
-        {[
-          { num: 1, label: 'Location' },
-          { num: 2, label: 'Photo & AI' },
-          { num: 3, label: 'Details' },
-          { num: 4, label: 'Submit' },
-        ].map((s) => (
-          <div key={s.num} className="flex flex-col items-center gap-2 bg-slate-50 dark:bg-background-darkAlt p-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
-              step >= s.num ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-            }`}>
-              {step > s.num ? <CheckCircle2 size={16} /> : s.num}
-            </div>
-            <span className={`text-xs font-medium ${step >= s.num ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Step Content */}
-      <Card className="overflow-hidden">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/40">
         <CardContent className="p-0">
-          <AnimatePresence mode="wait">
-            
-            {/* Step 1: Location */}
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="p-8"
-              >
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><MapPin className="text-primary" /> Pinpoint Location</h3>
-                <p className="text-slate-500 mb-6">Where did you spot the issue?</p>
-                
-                <div className="h-[300px] w-full bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 relative flex items-center justify-center overflow-hidden mb-6">
-                  {/* Mock Map */}
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                  <div className="text-center">
-                    <MapPin size={48} className="text-primary mx-auto mb-2 animate-bounce" />
-                    <p className="font-medium text-slate-700 dark:text-slate-300">MG Road, near Metro Station</p>
-                    <p className="text-xs text-slate-500">Drag to adjust pin</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button variant="outline" className="flex-1 gap-2">
-                    <MapPin size={16} /> Use Current Location
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Step 2: Photo & AI */}
-            {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="p-8"
-              >
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Camera className="text-primary" /> Upload Photo</h3>
-                <p className="text-slate-500 mb-6">Our AI will automatically analyze the image to categorize the issue.</p>
-                
-                {!isScanning && !scanComplete ? (
-                  <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-12 text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={simulateScan}>
-                    <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Upload size={24} />
-                    </div>
-                    <h4 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Click to Upload or Drag & Drop</h4>
-                    <p className="text-slate-500 text-sm">Supports JPG, PNG (Max 5MB)</p>
-                  </div>
-                ) : (
-                  <div className="relative rounded-3xl overflow-hidden bg-slate-900">
-                    <img 
-                      src="https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=800" 
-                      alt="Pothole" 
-                      className={`w-full h-[300px] object-cover transition-all duration-1000 ${isScanning ? 'opacity-50 grayscale' : 'opacity-100'}`}
-                    />
-                    
-                    {/* Scanning Animation */}
-                    {isScanning && (
-                      <motion.div 
-                        animate={{ top: ['0%', '100%', '0%'] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="absolute left-0 w-full h-1 bg-primary shadow-[0_0_15px_#1D4ED8] z-10"
-                      />
-                    )}
-
-                    {isScanning && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-20">
-                        <Bot size={48} className="text-primary mb-4 animate-pulse" />
-                        <h4 className="text-xl font-bold">Janasevak AI is analyzing...</h4>
-                        <p className="text-white/70">Identifying issue type and severity</p>
-                      </div>
-                    )}
-
-                    {scanComplete && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-white/20 shadow-xl flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
-                            <AlertTriangle size={24} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-slate-900 dark:text-white">Severe Pothole Detected</h4>
-                              <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">AI Match 98%</span>
-                            </div>
-                            <p className="text-sm text-slate-500">Category: Roads • Priority: High</p>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => {setScanComplete(false); setIsScanning(false);}}>Retake</Button>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Step 3: Details */}
-            {step === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="p-8 space-y-6"
-              >
-                <h3 className="text-xl font-bold mb-4">Confirm Details</h3>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Issue Title (AI Generated)</label>
-                  <Input defaultValue="Severe Pothole on Main Road" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Category</label>
-                    <select className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-background-darkAlt">
-                      <option>Roads & Infrastructure</option>
-                      <option>Sanitation</option>
-                      <option>Water Supply</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Priority</label>
-                    <select className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-background-darkAlt text-orange-600 font-semibold">
-                      <option>High</option>
-                      <option>Medium</option>
-                      <option>Low</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Additional Comments</label>
-                  <textarea 
-                    rows={4} 
-                    className="flex w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-background-darkAlt"
-                    placeholder="Provide any extra details here..."
-                  ></textarea>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Step 4: Success */}
-            {step === 4 && (
-              <motion.div
-                key="step4"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-12 text-center"
-              >
-                <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 size={48} />
-                </div>
-                <h3 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">Issue Reported Successfully!</h3>
-                <p className="text-slate-500 mb-8 max-w-md mx-auto">
-                  Thank you for being an active citizen. Your report has been verified by Janasevak AI and routed to the <strong>Roads & Highways Department</strong>.
-                </p>
-                <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
-                  <Button variant="outline" onClick={() => setStep(1)}>Report Another Issue</Button>
-                </div>
-              </motion.div>
-            )}
-
-          </AnimatePresence>
-        </CardContent>
-        
-        {/* Navigation Footer */}
-        {step < 4 && (
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
-            <Button 
-              variant="ghost" 
-              onClick={handleBack} 
-              disabled={step === 1}
-              className="gap-2"
-            >
-              <ChevronLeft size={16} /> Back
-            </Button>
-            
-            <Button 
-              onClick={handleNext}
-              disabled={step === 2 && !scanComplete}
-              className="gap-2"
-            >
-              {step === 3 ? 'Submit Report' : 'Continue'} <ChevronRight size={16} />
-            </Button>
+          <div className="border-b border-slate-100 px-6 py-8 sm:px-10">
+            <h1 className="text-3xl font-bold text-slate-900">Report a New Issue</h1>
+            <p className="mt-2 text-slate-500">Let&apos;s work together to make our community better.</p>
           </div>
-        )}
+
+          {step < 4 && <div className="px-6 pt-8 sm:px-10"><ReportProgress currentStep={step} /></div>}
+
+          {step === 1 && (
+            <div className="space-y-8 px-6 py-8 sm:px-10">
+              <section>
+                <h2 className="text-lg font-bold text-slate-900">1. What&apos;s the issue?</h2>
+                <p className="mt-1 text-sm text-slate-500">Select the category that best describes the problem.</p>
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {ISSUE_CATEGORY_OPTIONS.map(({ name, icon: Icon }) => <button key={name} type="button" onClick={() => setCategory(name)} className={`flex min-h-28 flex-col items-center justify-center gap-3 rounded-xl border-2 p-4 text-sm font-semibold transition ${category === name ? 'border-primary bg-primary-50 text-primary shadow-sm' : 'border-slate-200 text-slate-700 hover:border-primary/40 hover:bg-slate-50'}`}><Icon size={31} strokeWidth={1.8} />{name}</button>)}
+                </div>
+              </section>
+
+              <AttachmentUploader attachments={attachments} error={attachmentError} onAddFiles={addAttachments} onRemove={removeAttachment} />
+
+              <section>
+                <div className="flex items-baseline justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">3. Describe the issue</h2><p className="mt-1 text-sm text-slate-500">Provide useful details about the problem.</p></div><span className="text-sm text-slate-500">{description.length}/{MAX_DESCRIPTION_LENGTH}</span></div>
+                <textarea value={description} maxLength={MAX_DESCRIPTION_LENGTH} onChange={(event) => setDescription(event.target.value)} rows={5} aria-label="Issue description" placeholder="Example: Large pothole causing vehicle damage on this road..." className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20" />
+              </section>
+            </div>
+          )}
+
+          {step === 2 && <LocationPicker location={location} error={locationError} isLocating={isLocating} onLocationSelect={selectLocation} onUseCurrentLocation={useCurrentLocation} />}
+
+          {step === 3 && (
+            <div className="space-y-7 px-6 py-8 sm:px-10">
+              <div><h2 className="text-xl font-bold text-slate-900">Review your report</h2><p className="mt-1 text-sm text-slate-500">Check the details before submitting. This frontend demo does not save data.</p></div>
+              <div className="grid gap-6 lg:grid-cols-2"><div className="rounded-xl border border-slate-200 p-5"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Issue</p><p className="mt-2 font-semibold text-slate-900">{category}</p><p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{description}</p></div><div className="rounded-xl border border-slate-200 p-5"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Location</p><p className="mt-2 flex items-center gap-2 font-semibold text-slate-900"><MapPin size={18} className="text-primary" />{location?.label}</p><p className="mt-2 text-sm text-slate-500">Coordinates: {location?.lat.toFixed(5)}, {location?.lng.toFixed(5)}</p></div></div>
+              <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Photos ({attachments.length})</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{attachments.map((attachment) => <img key={attachment.id} src={attachment.previewUrl} alt={attachment.file.name} className="aspect-square rounded-xl border border-slate-200 object-cover" />)}</div></div>
+              {submitError && <p role="alert" className="flex items-center gap-2 text-sm text-red-600"><AlertCircle size={16} />{submitError}</p>}
+            </div>
+          )}
+
+          {step === 4 && <div className="px-6 py-16 text-center sm:px-10"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 size={42} /></div><h2 className="mt-6 text-3xl font-bold text-slate-900">Report ready to submit</h2><p className="mx-auto mt-3 max-w-xl text-slate-500">Your report passed frontend validation. No data was saved because the backend integration is intentionally pending.</p><Button type="button" className="mt-8 gap-2" onClick={reset}><Plus size={18} />Report another issue</Button></div>}
+
+          {step < 4 && <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-5 sm:px-10">{step === 1 ? <Button type="button" variant="outline" onClick={reset}>Cancel</Button> : <Button type="button" variant="outline" onClick={() => setStep((current) => (current - 1) as ReportStep)} className="gap-2"><ArrowLeft size={17} />Back</Button>}{step < 3 ? <Button type="button" onClick={goToNextStep} className="gap-2">Next<ArrowRight size={17} /></Button> : <Button type="button" onClick={submit} disabled={isSubmitting} className="gap-2">{isSubmitting ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />}{isSubmitting ? 'Preparing report…' : 'Submit report'}</Button>}</div>}
+        </CardContent>
       </Card>
     </div>
   );
