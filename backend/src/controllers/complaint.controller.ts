@@ -4,10 +4,95 @@ import { HTTP_STATUS } from "../constants/http";
 
 const service = new ComplaintService();
 export class ComplaintController {
-    async analyse(req: Request, res: Response, next: NextFunction): Promise<void> { try { const files = (req.files as Express.Multer.File[] | undefined) || []; const latitude = Number(req.body.latitude); const longitude = Number(req.body.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("Valid latitude and longitude are required"); const data = await service.analyseComplaint({ files, latitude, longitude, address: req.body.address, message: req.body.message, selectedCategory: req.body.selectedCategory, preferredLanguage: req.body.preferredLanguage || "auto" }); res.status(HTTP_STATUS.CREATED).json({ success: true, data }); } catch (error) { next(error); } }
-    async answer(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.answerAiQuestions(String(req.params.id), req.body.answers || []); res.json({ success: true, data }); } catch (error) { next(error); } }
-    async submit(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.submitAiComplaint(String(req.params.id), req.body.userId || req.user?.userId || "", req.body); res.status(HTTP_STATUS.CREATED).json({ success: true, data }); } catch (error) { next(error); } }
-    async getComplaints(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.getComplaints({ latitude: req.query.latitude ? Number(req.query.latitude) : undefined, longitude: req.query.longitude ? Number(req.query.longitude) : undefined, radiusMeters: req.query.radiusMeters ? Number(req.query.radiusMeters) : undefined, status: req.query.status as string | undefined }); res.json({ success: true, data }); } catch (error) { next(error); } }
-    async getComplaint(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.getComplaint(String(req.params.id)); if (!data) { res.status(404).json({ success: false, error: { message: "Complaint not found" } }); return; } res.json({ success: true, data }); } catch (error) { next(error); } }
+    async analyse(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const files = (req.files as Express.Multer.File[] | undefined) || [];
+            const latitude = Number(req.body.latitude);
+            const longitude = Number(req.body.longitude);
+            
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                throw new Error("Valid latitude and longitude are required");
+            }
+            
+            const data = await service.analyseComplaint({
+                files,
+                latitude,
+                longitude,
+                address: req.body.address,
+                message: req.body.message,
+                selectedCategory: req.body.selectedCategory,
+                preferredLanguage: req.body.preferredLanguage || "auto"
+            });
+            
+            res.status(HTTP_STATUS.CREATED).json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async answer(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const data = await service.answerAiQuestions(
+                String(req.params.id),
+                req.body.answers || []
+            );
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async submit(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const data = await service.submitAiComplaint(
+                String(req.params.id),
+                req.body.userId || req.user?.userId || "",
+                req.body
+            );
+            res.status(HTTP_STATUS.CREATED).json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getComplaints(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const data = await service.getComplaints({
+                latitude: req.query.latitude ? Number(req.query.latitude) : undefined,
+                longitude: req.query.longitude ? Number(req.query.longitude) : undefined,
+                radiusMeters: req.query.radiusMeters ? Number(req.query.radiusMeters) : undefined,
+                status: req.query.status as string | undefined
+            });
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getComplaint(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const data = await service.getComplaint(String(req.params.id));
+            if (!data) {
+                res.status(404).json({ success: false, error: { message: "Complaint not found" } });
+                return;
+            }
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
-export function complaintErrorHandler(error: unknown, _req: Request, res: Response, next: NextFunction): void { if ((error as { code?: string })?.code === "LIMIT_FILE_SIZE") { res.status(400).json({ success: false, error: { message: "Each image must be 5 MB or smaller" } }); return; } if (error instanceof Error) { res.status(error.message.startsWith("Gemini") ? 502 : 400).json({ success: false, error: { message: error.message } }); return; } next(error); }
+
+export function complaintErrorHandler(error: unknown, _req: Request, res: Response, next: NextFunction): void {
+    if ((error as { code?: string })?.code === "LIMIT_FILE_SIZE") {
+        res.status(400).json({ success: false, error: { message: "Each image must be 5 MB or smaller" } });
+        return;
+    }
+    
+    if (error instanceof Error) {
+        res.status(error.message.startsWith("Gemini") ? 502 : 400).json({ success: false, error: { message: error.message } });
+        return;
+    }
+    
+    next(error);
+}
