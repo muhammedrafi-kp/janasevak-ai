@@ -23,8 +23,7 @@ export const DashboardLayout = ({ role = 'citizen' }: { role?: 'citizen' | 'auth
     { name: 'My Issues', path: '/my-issues', icon: AlertCircle },
     { name: 'Community', path: '/dashboard/community', icon: MessageSquare },
   ] : [
-    { name: 'Command Center', path: '/authority', icon: Activity },
-    { name: 'Live Map', path: '/authority/map', icon: MapPin },
+    { name: 'Dashboard', path: '/authority', icon: Activity },
     { name: 'Issues', path: '/authority/issues', icon: AlertCircle },
   ];
 

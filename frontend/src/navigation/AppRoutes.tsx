@@ -8,6 +8,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { SignupPage } from '../pages/SignupPage';
 import { CitizenDashboard } from '../pages/CitizenDashboard';
 import { AuthorityDashboard } from '../pages/AuthorityDashboard';
+import { AuthorityIssuesPage } from '../pages/AuthorityIssuesPage';
 import { ReportIssue } from '../pages/ReportIssue';
 import { PublicMap } from '../pages/PublicMap';
 import { ComplaintDetails } from '../pages/ComplaintDetails';
@@ -41,6 +42,7 @@ export const AppRoutes: React.FC = () => {
       {/* Authority Dashboard Routes */}
       <Route element={<DashboardLayout role="authority" />}>
         <Route path="/authority" element={<AuthorityDashboard />} />
+        <Route path="/authority/issues" element={<AuthorityIssuesPage />} />
       </Route>
 
       {/* Fallback */}
