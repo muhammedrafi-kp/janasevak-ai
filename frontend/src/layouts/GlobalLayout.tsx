@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, CirclePlus, Home, ListTodo, LogOut, MapPin, Menu, UserRound, X } from 'lucide-react';
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Bell, CirclePlus, Home, ListTodo, LogOut, MapPin, Menu, UserRound, X, House, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingChatbot } from '../components/shared/FloatingChatbot';
+import { useUserStore } from '../store/useUserStore';
 
 const citizenNavigation = [
   { label: 'Home', to: '/', icon: Home, end: true },
@@ -14,11 +15,15 @@ const citizenNavigation = [
 
 export const GlobalLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
   const navItems = [
     { label: 'Home', path: '/', icon: House },
     { label: 'Report Issue', path: '/report', icon: CirclePlus },
     { label: 'Public Map', path: '/map', icon: ClipboardList },
   ];
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-800 dark:text-slate-100 flex flex-col">
@@ -55,11 +60,17 @@ export const GlobalLayout = () => {
               <Bell size={20} className="text-slate-600 dark:text-slate-300" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full border border-white dark:border-background-dark"></span>
             </button>
-            <Link to="/login" className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary-600 sm:flex">
-              Sign In
-            </Link>
-            <button aria-label="Open navigation menu" className="p-2 text-slate-600 md:hidden">
-              <Menu size={24} />
+            {!isAuthenticated ? (
+              <Link to="/login" className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary-600 sm:flex">
+                Sign In
+              </Link>
+            ) : (
+              <Link to="/dashboard" className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary-600 sm:flex">
+                Dashboard
+              </Link>
+            )}
+            <button aria-label="Open navigation menu" className="p-2 text-slate-600 md:hidden" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
