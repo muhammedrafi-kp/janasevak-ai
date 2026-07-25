@@ -37,7 +37,7 @@ export function useReportAttachments() {
       return { attachments: attachmentsRef.current, error: `You can upload a maximum of ${MAX_ATTACHMENTS} images.` };
     }
 
-    const acceptableFiles = files.filter((file) => file.type.startsWith('image/') && file.size <= MAX_ATTACHMENT_SIZE_BYTES);
+    const acceptableFiles = files.filter((file) => ['image/jpeg', 'image/png'].includes(file.type) && file.size <= MAX_ATTACHMENT_SIZE_BYTES);
     const acceptedFiles = acceptableFiles.slice(0, availableSlots);
     const newAttachments = acceptedFiles.map((file): ReportAttachment => ({
       id: crypto.randomUUID(),
@@ -55,7 +55,7 @@ export function useReportAttachments() {
     const invalidFileIncluded = acceptableFiles.length !== files.length;
     const overLimit = acceptableFiles.length > availableSlots;
     const error = invalidFileIncluded
-      ? 'Only image files up to 5 MB are accepted.'
+      ? 'Only JPG or PNG images up to 5 MB are accepted.'
       : overLimit
         ? `Only ${availableSlots} more image${availableSlots === 1 ? '' : 's'} can be added.`
         : null;

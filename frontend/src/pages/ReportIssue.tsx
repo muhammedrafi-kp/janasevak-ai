@@ -7,7 +7,7 @@ import { AttachmentUploader } from '../features/report-issue/components/Attachme
 import { LocationPicker } from '../features/report-issue/components/LocationPicker';
 import { ReportProgress } from '../features/report-issue/components/ReportProgress';
 import { useReportAttachments } from '../features/report-issue/hooks/useReportAttachments';
-import { submitReportDraft } from '../features/report-issue/services/reportIssue.service';
+import { answerReportFollowUp, submitReportDraft, type AiResult } from '../features/report-issue/services/reportIssue.service';
 import type { IssueCategory, LocationSelection, ReportDraft } from '../features/report-issue/types';
 
 type ReportStep = 1 | 2 | 3 | 4;
@@ -22,6 +22,8 @@ export const ReportIssue = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiResult, setAiResult] = useState<AiResult | null>(null);
+  const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
   const { attachments, addFiles, removeAttachment, resetAttachments, isScanning } = useReportAttachments();
 
   const addAttachments = (files: File[]) => {
@@ -93,13 +95,21 @@ export const ReportIssue = () => {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      await submitReportDraft(draft);
-      setStep(4);
-    } catch {
-      setSubmitError('The report could not be prepared. Please try again.');
+      const result = await submitReportDraft(draft);
+      if (result.mode === 'followup') setAiResult(result); else setStep(4);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'The report could not be prepared. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const answerFollowUp = async () => {
+    if (!category || !location || !aiResult) return;
+    const answers = aiResult.analysis.followUpQuestions.map((question) => ({ questionId: question.id, answer: followUpAnswers[question.id]?.trim() || '' })).filter((answer) => answer.answer);
+    if (!answers.length) { setSubmitError('Answer at least one AI follow-up question.'); return; }
+    setIsSubmitting(true); setSubmitError(null);
+    try { const result = await answerReportFollowUp(aiResult.sessionId, answers); if (result.mode === 'followup') setAiResult(result); else setStep(4); } catch (error) { setSubmitError(error instanceof Error ? error.message : 'Could not update AI analysis.'); } finally { setIsSubmitting(false); }
   };
 
   const reset = () => {
@@ -110,6 +120,8 @@ export const ReportIssue = () => {
     setAttachmentError(null);
     setLocationError(null);
     setSubmitError(null);
+    setAiResult(null);
+    setFollowUpAnswers({});
     setStep(1);
   };
 
@@ -147,16 +159,17 @@ export const ReportIssue = () => {
 
           {step === 3 && (
             <div className="space-y-7 px-6 py-8 sm:px-10">
-              <div><h2 className="text-xl font-bold text-slate-900">Review your report</h2><p className="mt-1 text-sm text-slate-500">Check the details before submitting. This frontend demo does not save data.</p></div>
+              <div><h2 className="text-xl font-bold text-slate-900">Review your report</h2><p className="mt-1 text-sm text-slate-500">AI analysis runs before final submission.</p></div>
+              {aiResult?.mode === 'followup' && <div className="space-y-4 rounded-xl border border-primary/20 bg-primary-50 p-5"><p className="font-semibold text-primary">{aiResult.analysis.userMessage}</p>{aiResult.analysis.followUpQuestions.map((question) => <label key={question.id} className="block text-sm font-medium text-slate-700">{question.question}{question.answerType === 'SINGLE_SELECT' ? <select className="mt-2 w-full rounded-lg border p-2" value={followUpAnswers[question.id] || ''} onChange={(event) => setFollowUpAnswers({ ...followUpAnswers, [question.id]: event.target.value })}><option value="">Select an answer</option>{question.options.map((option) => <option key={option}>{option}</option>)}</select> : <input className="mt-2 w-full rounded-lg border p-2" type={question.answerType === 'NUMBER' ? 'number' : 'text'} value={followUpAnswers[question.id] || ''} onChange={(event) => setFollowUpAnswers({ ...followUpAnswers, [question.id]: event.target.value })} />}</label>)}</div>}
               <div className="grid gap-6 lg:grid-cols-2"><div className="rounded-xl border border-slate-200 p-5"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Issue</p><p className="mt-2 font-semibold text-slate-900">{category}</p><p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{description}</p></div><div className="rounded-xl border border-slate-200 p-5"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Location</p><p className="mt-2 flex items-center gap-2 font-semibold text-slate-900"><MapPin size={18} className="text-primary" />{location?.label}</p><p className="mt-2 text-sm text-slate-500">Coordinates: {location?.lat.toFixed(5)}, {location?.lng.toFixed(5)}</p></div></div>
               <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Photos ({attachments.length})</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{attachments.map((attachment) => <img key={attachment.id} src={attachment.previewUrl} alt={attachment.file.name} className="aspect-square rounded-xl border border-slate-200 object-cover" />)}</div></div>
               {submitError && <p role="alert" className="flex items-center gap-2 text-sm text-red-600"><AlertCircle size={16} />{submitError}</p>}
             </div>
           )}
 
-          {step === 4 && <div className="px-6 py-16 text-center sm:px-10"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 size={42} /></div><h2 className="mt-6 text-3xl font-bold text-slate-900">Report ready to submit</h2><p className="mx-auto mt-3 max-w-xl text-slate-500">Your report passed frontend validation. No data was saved because the backend integration is intentionally pending.</p><Button type="button" className="mt-8 gap-2" onClick={reset}><Plus size={18} />Report another issue</Button></div>}
+          {step === 4 && <div className="px-6 py-16 text-center sm:px-10"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 size={42} /></div><h2 className="mt-6 text-3xl font-bold text-slate-900">Report submitted successfully</h2><p className="mx-auto mt-3 max-w-xl text-slate-500">Your images were analyzed, uploaded to Cloudinary, and saved as a civic complaint.</p><Button type="button" className="mt-8 gap-2" onClick={reset}><Plus size={18} />Report another issue</Button></div>}
 
-          {step < 4 && <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-5 sm:px-10">{step === 1 ? <Button type="button" variant="outline" onClick={reset}>Cancel</Button> : <Button type="button" variant="outline" onClick={() => setStep((current) => (current - 1) as ReportStep)} className="gap-2"><ArrowLeft size={17} />Back</Button>}{step < 3 ? <Button type="button" onClick={goToNextStep} className="gap-2">Next<ArrowRight size={17} /></Button> : <Button type="button" onClick={submit} disabled={isSubmitting} className="gap-2">{isSubmitting ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />}{isSubmitting ? 'Preparing report…' : 'Submit report'}</Button>}</div>}
+          {step < 4 && <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-5 sm:px-10">{step === 1 ? <Button type="button" variant="outline" onClick={reset}>Cancel</Button> : <Button type="button" variant="outline" onClick={() => setStep((current) => (current - 1) as ReportStep)} className="gap-2"><ArrowLeft size={17} />Back</Button>}{step < 3 ? <Button type="button" onClick={goToNextStep} className="gap-2">Next<ArrowRight size={17} /></Button> : <Button type="button" onClick={aiResult?.mode === 'followup' ? answerFollowUp : submit} disabled={isSubmitting} className="gap-2">{isSubmitting ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />}{isSubmitting ? 'Preparing report…' : aiResult?.mode === 'followup' ? 'Update AI analysis' : 'Submit report'}</Button>}</div>}
         </CardContent>
       </Card>
     </div>

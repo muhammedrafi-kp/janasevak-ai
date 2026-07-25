@@ -1,49 +1,13 @@
+import type { NextFunction, Request, Response } from "express";
 import { ComplaintService } from "../services/complaint.service";
-import { Request, Response } from "express";
-import { HTTP_STATUS, HTTP_MESSAGE } from "../constants/http";
-import { Types } from "mongoose";
-import { IComplaint } from "../models/Complaint";
+import { HTTP_STATUS } from "../constants/http";
 
+const service = new ComplaintService();
 export class ComplaintController {
-    constructor(private _complaintService: ComplaintService) { };
-
-    async createComplaint(req: Request, res: Response): Promise<void> {
-        try {
-            const userId = new Types.ObjectId(req.user?.userId);
-            const complaint = await this._complaintService.createComplaint(userId, req.body as IComplaint, req.files as Express.Multer.File[]);
-            res.status(HTTP_STATUS.CREATED).json(complaint);
-        } catch (error) {
-            console.error("Error creating complaint:", error);
-            res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: HTTP_MESSAGE.INTERNAL_SERVER_ERROR });
-        }
-    }
-
-    async getComplaints(req: Request, res: Response): Promise<void> {
-        try {
-            const userId = new Types.ObjectId(req.user?.userId);
-
-            const {
-                page = 1,
-                limit = 9,
-                search = '',
-                status = '',
-                sortBy = 'createdAt',
-                sortOrder = 'desc'
-            } = req.query;
-
-            const queryParams = {
-                page: Number(page),
-                limit: Number(limit),
-                search: search as string,
-                status: status as string,
-                sortBy: sortBy as string,
-                sortOrder: sortOrder as 'asc' | 'desc',
-            };
-            const complaints = await this._complaintService.getComplaints(userId, queryParams);
-            res.status(HTTP_STATUS.OK).json(complaints);
-        } catch (error) {
-            console.error("Error getting complaints:", error);
-            res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: HTTP_MESSAGE.INTERNAL_SERVER_ERROR });
-        }
-    }
+    async analyse(req: Request, res: Response, next: NextFunction): Promise<void> { try { const files = (req.files as Express.Multer.File[] | undefined) || []; const latitude = Number(req.body.latitude); const longitude = Number(req.body.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("Valid latitude and longitude are required"); const data = await service.analyseComplaint({ files, latitude, longitude, address: req.body.address, message: req.body.message, selectedCategory: req.body.selectedCategory, preferredLanguage: req.body.preferredLanguage || "auto" }); res.status(HTTP_STATUS.CREATED).json({ success: true, data }); } catch (error) { next(error); } }
+    async answer(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.answerAiQuestions(String(req.params.id), req.body.answers || []); res.json({ success: true, data }); } catch (error) { next(error); } }
+    async submit(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.submitAiComplaint(String(req.params.id), req.body.userId || req.user?.userId || "", req.body); res.status(HTTP_STATUS.CREATED).json({ success: true, data }); } catch (error) { next(error); } }
+    async getComplaints(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.getComplaints({ latitude: req.query.latitude ? Number(req.query.latitude) : undefined, longitude: req.query.longitude ? Number(req.query.longitude) : undefined, radiusMeters: req.query.radiusMeters ? Number(req.query.radiusMeters) : undefined, status: req.query.status as string | undefined }); res.json({ success: true, data }); } catch (error) { next(error); } }
+    async getComplaint(req: Request, res: Response, next: NextFunction): Promise<void> { try { const data = await service.getComplaint(String(req.params.id)); if (!data) { res.status(404).json({ success: false, error: { message: "Complaint not found" } }); return; } res.json({ success: true, data }); } catch (error) { next(error); } }
 }
+export function complaintErrorHandler(error: unknown, _req: Request, res: Response, next: NextFunction): void { if ((error as { code?: string })?.code === "LIMIT_FILE_SIZE") { res.status(400).json({ success: false, error: { message: "Each image must be 5 MB or smaller" } }); return; } if (error instanceof Error) { res.status(error.message.startsWith("Gemini") ? 502 : 400).json({ success: false, error: { message: error.message } }); return; } next(error); }

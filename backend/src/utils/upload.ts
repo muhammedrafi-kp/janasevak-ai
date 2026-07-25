@@ -1,5 +1,7 @@
 import cloudinary from "../configs/cloudinary";
 import streamifier from "streamifier";
+import crypto from "node:crypto";
+import sharp from "sharp";
 
 export interface UploadedFile {
     filename: string;
@@ -27,4 +29,23 @@ export const uploadFiles = async (attachments: Express.Multer.File[]): Promise<U
         });
     });
     return await Promise.all(uploadPromises);
+}
+
+export async function prepareImages(files: Express.Multer.File[]) {
+    if (!files.length) throw new Error("At least one image is required");
+    if (files.length > 4) throw new Error("A maximum of 4 images is allowed");
+    return Promise.all(files.map(async (file) => {
+        if (!["image/jpeg", "image/png"].includes(file.mimetype)) throw new Error("Only JPG and PNG images are allowed");
+        const buffer = await sharp(file.buffer, { failOn: "error" }).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+        return { mimeType: "image/jpeg", base64: buffer.toString("base64"), hash: crypto.createHash("sha256").update(buffer).digest("hex") };
+    }));
+}
+
+export async function uploadPreparedImages(images: Array<{ mimeType: string; base64: string }>): Promise<string[]> {
+    return Promise.all(images.map((image) => new Promise<string>((resolve, reject) => {
+        cloudinary.uploader.upload(`data:${image.mimeType};base64,${image.base64}`, { folder: "janasevak-ai/complaints", resource_type: "image" }, (error, result) => {
+            if (error || !result?.secure_url) return reject(error || new Error("Cloudinary upload failed"));
+            resolve(result.secure_url);
+        });
+    })));
 }
