@@ -20,7 +20,7 @@ export const DashboardLayout = ({ role = 'citizen' }: { role?: 'citizen' | 'auth
 
   const links = role === 'citizen' ? [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'My Reports', path: '/dashboard/reports', icon: AlertCircle },
+    { name: 'My Issues', path: '/my-issues', icon: AlertCircle },
     { name: 'Community', path: '/dashboard/community', icon: MessageSquare },
   ] : [
     { name: 'Command Center', path: '/authority', icon: Activity },
