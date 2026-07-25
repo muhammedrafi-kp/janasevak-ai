@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import { configDotenv } from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 configDotenv();
 
@@ -10,3 +11,7 @@ cloudinary.config({
 });
 
 export default cloudinary;
+
+if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is required");
+export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export const geminiAnalysisModel = process.env.GEMINI_ANALYSIS_MODEL || "gemini-2.5-flash";

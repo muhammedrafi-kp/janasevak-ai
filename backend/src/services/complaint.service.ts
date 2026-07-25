@@ -1,103 +1,46 @@
-import Complaint from "../models/Complaint";
-import { Request, Response } from "express";
 import { Types } from "mongoose";
-import { IComplaint } from "../models/Complaint";
-import { uploadFiles } from "../utils/upload";
+import Complaint, { ComplaintPriority, ComplaintStatus, type IComplaint } from "../models/Complaint";
+import { gemini, geminiAnalysisModel } from "../configs/cloudinary";
+import { prepareImages, uploadPreparedImages } from "../utils/upload";
 
+const CATEGORIES = ["ROAD_DAMAGE", "WATER_LEAKAGE", "WASTE_MANAGEMENT", "DRAINAGE", "STREET_LIGHT", "SEWAGE", "ELECTRICAL_HAZARD", "FALLEN_TREE", "PUBLIC_TRANSPORT", "PUBLIC_SAFETY", "PUBLIC_INFRASTRUCTURE", "OTHER"] as const;
+type Analysis = { isCivicIssue: boolean; imagesConsistent: boolean; primaryCategory: string; suggestedTitle: string; suggestedDescription: string; provisionalSeverity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; confidence: number; safetyRiskDetected: boolean; needsFollowUp: boolean; followUpQuestions: Array<{ id: string; question: string; answerType: string; options: string[]; required: boolean }>; categoryMatch: { status: string; reason: string | null; suggestedCategory: string | null }; userMessage: string };
+
+const responseSchema = { type: "object", properties: { isCivicIssue: { type: "boolean" }, imagesConsistent: { type: "boolean" }, primaryCategory: { type: "string", enum: CATEGORIES }, suggestedTitle: { type: "string" }, suggestedDescription: { type: "string" }, provisionalSeverity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] }, confidence: { type: "number", minimum: 0, maximum: 1 }, safetyRiskDetected: { type: "boolean" }, needsFollowUp: { type: "boolean" }, followUpQuestions: { type: "array", items: { type: "object", properties: { id: { type: "string" }, question: { type: "string" }, answerType: { type: "string", enum: ["TEXT", "YES_NO", "SINGLE_SELECT", "NUMBER"] }, options: { type: "array", items: { type: "string" } }, required: { type: "boolean" } }, required: ["id", "question", "answerType", "options", "required"] } }, categoryMatch: { type: "object", properties: { status: { type: "string", enum: ["NOT_PROVIDED", "MATCH", "PARTIAL_MATCH", "MISMATCH", "UNCERTAIN"] }, reason: { type: ["string", "null"] }, suggestedCategory: { type: ["string", "null"], enum: [...CATEGORIES, null] } }, required: ["status", "reason", "suggestedCategory"] }, userMessage: { type: "string" } }, required: ["isCivicIssue", "imagesConsistent", "primaryCategory", "suggestedTitle", "suggestedDescription", "provisionalSeverity", "confidence", "safetyRiskDetected", "needsFollowUp", "followUpQuestions", "categoryMatch", "userMessage"] } as const;
+const rules = `Analyze civic issue images and the citizen message. Malayalam, English and Manglish are supported. Use only visible facts and explicit citizen text. Never invent location, cause, duration, or people. Use only category codes: ${CATEGORIES.join(", ")}. If images show unrelated issues, set imagesConsistent false and ask to report separately. Ask useful missing questions only. Category mismatch is a warning, not rejection. Use exact uppercase enums. confidence is 0 to 1, not a percent. Return JSON only.`;
 
 export class ComplaintService {
-    constructor() { };
-
-    // async createComplaint(userId: Types.ObjectId, complaintData: IComplaint, files: Express.Multer.File[]) {
-        async createComplaint(complaintData: IComplaint, files: Express.Multer.File[]) {
-
-        const { title, description, location } = complaintData;
-
-        // Upload files to Cloudinary
-        const imageUrls: string[] = [];
-
-        for (const file of files) {
-            const uploaded = await uploadFiles([file]);
-            if (uploaded.length > 0) {
-                imageUrls.push(uploaded[0].url);
-            }
-        }
-
-        // Create complaint
-        const complaint = new Complaint({
-            title,
-            description,
-            imageUrls,
-            location,
-            createdBy: userId,
-        });
-
-        await complaint.save();
-        return complaint;
+    async analyseComplaint(input: { files: Express.Multer.File[]; message?: string; selectedCategory?: string; latitude: number; longitude: number; address?: string; preferredLanguage: string }) {
+        const images = await prepareImages(input.files);
+        const analysis = await this.askGemini([{ text: `${rules}\nMessage: ${input.message || "(none)"}\nSelected category: ${input.selectedCategory || "(none)"}\nReply language: ${input.preferredLanguage}` }, ...images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.base64 } }))]);
+        const draft = await Complaint.create({ title: analysis.suggestedTitle || "AI analysis draft", description: analysis.suggestedDescription || input.message || "AI analysis draft", imageUrls: [], imageHashes: images.map((image) => image.hash), location: { latitude: input.latitude, longitude: input.longitude, address: input.address || "Pinned location" }, geoLocation: { type: "Point", coordinates: [input.longitude, input.latitude] }, aiAnalysis: { category: analysis.primaryCategory, priority: this.priority(analysis.provisionalSeverity), summary: analysis.suggestedDescription, assignedDepartment: this.department(analysis.primaryCategory), confidence: analysis.confidence }, isAiDraft: true, aiSession: { images, analysis, answers: [], round: 0, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } });
+        const duplicateCandidates = analysis.needsFollowUp ? [] : await this.findDuplicates(analysis, input.latitude, input.longitude, images.map((image) => image.hash));
+        return { sessionId: draft._id, state: this.state(analysis, duplicateCandidates), analysis, duplicateCandidates };
     }
 
-    async getComplaints(userId: Types.ObjectId, queryParams: {
-        page?: number;
-        limit?: number;
-        search?: string;
-        status?: string;
-        sortBy?: string;
-        sortOrder?: 'asc' | 'desc';
-    }) {
-
-        const {
-            page = 1,
-            limit = 9,
-            search = '',
-            status = '',
-            sortBy = 'createdAt',
-            sortOrder = 'desc'
-        } = queryParams;
-
-        const filter: any = { userId, isDeleted: { $ne: true } };
-
-
-        if (search) {
-            filter.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        if (status && status !== 'all') {
-            filter.status = status;
-        }
-
-        const sort: any = {};
-        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-        const skip = (page - 1) * limit;
-
-        const totalCount = await Complaint.countDocuments(filter);
-
-        const complaints = await Complaint.find(filter)
-            .sort(sort)
-            .skip(skip)
-            .limit(limit);
-
-        const totalPages = Math.ceil(totalCount / limit);
-
-        return { complaints, totalPages };
+    async answerAiQuestions(sessionId: string, answers: Array<{ questionId: string; answer: string }>) {
+        const draft = await this.draft(sessionId); const session = draft.aiSession!; if (session.round >= 3) throw new Error("Maximum follow-up rounds reached");
+        const previous = session.analysis as unknown as Analysis; const allowed = new Map(previous.followUpQuestions.map((question) => [question.id, question.question])); const known = new Set(session.answers.map((answer) => answer.questionId)); const unanswered = previous.followUpQuestions.filter((question) => !known.has(question.id)); const accepted = answers.map((answer, index) => {
+            const questionId = allowed.has(answer.questionId) && !known.has(answer.questionId) ? answer.questionId : unanswered[index]?.id;
+            return questionId && answer.answer.trim() ? { questionId, answer: answer.answer.trim() } : null;
+        }).filter((answer): answer is { questionId: string; answer: string } => Boolean(answer)); if (!accepted.length) throw new Error("Answer at least one follow-up question");
+        const saved = accepted.map((answer) => ({ questionId: answer.questionId, question: allowed.get(answer.questionId)!, answer: answer.answer, createdAt: new Date() }));
+        const analysis = await this.askGemini([{ text: `${rules}\nPrevious analysis: ${JSON.stringify(previous)}\nNew answers: ${JSON.stringify(saved)}\nDo not ask answered questions: ${JSON.stringify([...known, ...accepted.map((answer) => answer.questionId)])}` }]);
+        session.answers.push(...saved); session.analysis = analysis; session.round += 1; draft.markModified("aiSession"); await draft.save(); const duplicates = analysis.needsFollowUp ? [] : await this.findDuplicates(analysis, draft.location.latitude, draft.location.longitude, draft.imageHashes); return { sessionId: draft._id, state: this.state(analysis, duplicates), analysis, duplicateCandidates: duplicates };
     }
 
-    async getComplaint(id: Types.ObjectId) {
-        const complaint = await Complaint.findById(id);
-        return complaint;
+    async submitAiComplaint(sessionId: string, userId: string, changes: { title?: string; description?: string; category?: string }) {
+        if (!Types.ObjectId.isValid(userId)) throw new Error("A valid userId is required"); const draft = await this.draft(sessionId); const analysis = draft.aiSession!.analysis as unknown as Analysis; if (analysis.needsFollowUp || !analysis.imagesConsistent || !analysis.isCivicIssue) throw new Error("Complete the AI follow-up before submitting this complaint");
+        const imageUrls = await uploadPreparedImages(draft.aiSession!.images); draft.title = changes.title?.trim() || analysis.suggestedTitle; draft.description = changes.description?.trim() || analysis.suggestedDescription; draft.imageUrls = imageUrls; draft.createdBy = new Types.ObjectId(userId); draft.aiAnalysis = { category: CATEGORIES.includes(changes.category as typeof CATEGORIES[number]) ? changes.category! : analysis.primaryCategory, priority: this.priority(analysis.provisionalSeverity), summary: analysis.suggestedDescription, assignedDepartment: this.department(changes.category || analysis.primaryCategory), confidence: analysis.confidence }; draft.status = ComplaintStatus.SUBMITTED; draft.isAiDraft = false; draft.aiSession = undefined; draft.markModified("aiSession"); await draft.save(); return draft;
     }
 
-    async updateComplaint(id: Types.ObjectId, complaintData: IComplaint) {
-        const complaint = await Complaint.findByIdAndUpdate(id, complaintData, { new: true });
-        return complaint;
-    }
+    async getComplaints(queryParams: { latitude?: number; longitude?: number; radiusMeters?: number; status?: string }) { const filter: Record<string, unknown> = { isAiDraft: false }; if (queryParams.status) filter.status = queryParams.status; if (queryParams.latitude !== undefined && queryParams.longitude !== undefined) filter.geoLocation = { $near: { $geometry: { type: "Point", coordinates: [queryParams.longitude, queryParams.latitude] }, $maxDistance: queryParams.radiusMeters || 5000 } }; return Complaint.find(filter).select("title description imageUrls location aiAnalysis status createdAt").limit(100).lean(); }
+    async getComplaint(id: string) { return Complaint.findOne({ _id: id, isAiDraft: false }).lean(); }
 
-    async deleteComplaint(req: Request, res: Response) {
-        const complaint = await Complaint.findByIdAndDelete(req.params.id);
-        return complaint;
-    }
-
+    private async draft(id: string) { if (!Types.ObjectId.isValid(id)) throw new Error("Invalid AI session ID"); const draft = await Complaint.findOne({ _id: id, isAiDraft: true }); if (!draft || !draft.aiSession || draft.aiSession.expiresAt < new Date()) throw new Error("AI session not found or expired"); return draft; }
+    private async askGemini(contents: Array<Record<string, unknown>>): Promise<Analysis> { let last: unknown; for (let attempt = 0; attempt < 2; attempt += 1) try { const response = await gemini.models.generateContent({ model: geminiAnalysisModel, contents, config: { responseMimeType: "application/json", responseJsonSchema: responseSchema } }); const value = JSON.parse(response.text || "{}"); if (typeof value.confidence === "number" && value.confidence > 1 && value.confidence <= 100) value.confidence /= 100; return value as Analysis; } catch (error) { last = error; } throw new Error(`Gemini analysis failed: ${last instanceof Error ? last.message : "unknown error"}`); }
+    private async findDuplicates(analysis: Analysis, latitude: number, longitude: number, hashes: string[]) { const nearby = await Complaint.find({ isAiDraft: false, geoLocation: { $near: { $geometry: { type: "Point", coordinates: [longitude, latitude] }, $maxDistance: 500 } }, status: { $in: [ComplaintStatus.SUBMITTED, ComplaintStatus.VERIFIED, ComplaintStatus.IN_PROGRESS] } }).limit(20).lean(); return nearby.map((item) => { const imageMatch = item.imageHashes.some((hash) => hashes.includes(hash)); const categoryMatch = item.aiAnalysis.category === analysis.primaryCategory; const score = Number((imageMatch ? .95 : categoryMatch ? .7 : 0).toFixed(2)); return { complaintId: item._id, title: item.title, score, reason: imageMatch ? "The same image was used in a nearby active complaint." : "A nearby complaint has the same category." }; }).filter((item) => item.score >= .65); }
+    private state(analysis: Analysis, duplicates: Array<{ score: number }>) { if (analysis.needsFollowUp || !analysis.imagesConsistent) return "NEEDS_FOLLOW_UP"; if (["MISMATCH", "PARTIAL_MATCH"].includes(analysis.categoryMatch.status)) return "CATEGORY_REVIEW_REQUIRED"; return duplicates.length ? "POSSIBLE_DUPLICATE" : "READY"; }
+    private priority(value: string) { return value === "HIGH" || value === "CRITICAL" ? ComplaintPriority.HIGH : value === "MEDIUM" ? ComplaintPriority.MEDIUM : ComplaintPriority.LOW; }
+    private department(category: string) { if (["ROAD_DAMAGE", "PUBLIC_INFRASTRUCTURE"].includes(category)) return "Public Works Department"; if (["WATER_LEAKAGE", "DRAINAGE", "SEWAGE"].includes(category)) return "Water and Sanitation Department"; if (["STREET_LIGHT", "ELECTRICAL_HAZARD"].includes(category)) return "Electrical Department"; if (category === "WASTE_MANAGEMENT") return "Waste Management Department"; return "Civic Administration"; }
 }

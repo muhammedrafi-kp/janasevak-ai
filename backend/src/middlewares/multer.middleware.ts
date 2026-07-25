@@ -5,12 +5,11 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 4 },
     fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
         const allowedTypes = [
             "image/jpeg",
             "image/png",
-            "image/jpg",
         ];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);

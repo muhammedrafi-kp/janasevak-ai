@@ -44,7 +44,7 @@ export function AttachmentUploader({ attachments, error, onAddFiles, onRemove }:
           <p className="mt-3 font-medium text-slate-800">Drag and drop images here</p>
           <p className="mt-1 text-sm text-slate-500">or click to choose files</p>
           <Button type="button" variant="outline" className="pointer-events-none mt-4">Choose files</Button>
-          <input ref={inputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectFiles} />
+          <input ref={inputRef} className="hidden" type="file" accept="image/jpeg,image/png" multiple onChange={selectFiles} />
         </div>
       )}
 
