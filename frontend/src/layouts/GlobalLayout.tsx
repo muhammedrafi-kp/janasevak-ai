@@ -1,7 +1,16 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Menu, Bell, MapPin, ClipboardList, CirclePlus, House } from 'lucide-react';
+import { useState } from 'react';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Bell, CirclePlus, Home, ListTodo, LogOut, MapPin, Menu, UserRound, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingChatbot } from '../components/shared/FloatingChatbot';
+
+const citizenNavigation = [
+  { label: 'Home', to: '/', icon: Home, end: true },
+  { label: 'Report Issue', to: '/report', icon: CirclePlus },
+  { label: 'My Issues', to: '/my-issues', icon: ListTodo },
+  { label: 'Notifications', to: '/notifications', icon: Bell },
+  { label: 'Profile', to: '/profile', icon: UserRound },
+];
 
 export const GlobalLayout = () => {
   const location = useLocation();
@@ -54,12 +63,11 @@ export const GlobalLayout = () => {
             </button>
           </div>
         </div>
+
+        {isMobileMenuOpen && <nav aria-label="Mobile citizen navigation" className="border-t border-slate-200 bg-white px-5 py-3 shadow-lg lg:hidden">{citizenNavigation.map(({ label, to, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={closeMobileMenu} className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold ${isActive ? 'bg-primary-50 text-primary' : 'text-slate-700 hover:bg-slate-50'}`}><Icon size={19} />{label}</NavLink>)}<button type="button" onClick={() => { closeMobileMenu(); navigate('/login'); }} className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold text-primary"><LogOut size={19} />Sign Out</button></nav>}
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col">
-        <Outlet />
-      </main>
+      <main className="flex-1 flex flex-col"><Outlet /></main>
 
       {/* Footer */}
       <footer className="mt-4 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-background-darkAlt">

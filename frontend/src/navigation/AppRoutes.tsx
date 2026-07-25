@@ -12,6 +12,8 @@ import { ReportIssue } from '../pages/ReportIssue';
 import { PublicMap } from '../pages/PublicMap';
 import { ComplaintDetails } from '../pages/ComplaintDetails';
 import { ProfilePage } from '../pages/ProfilePage';
+import { MyIssuesPage } from '../pages/MyIssuesPage';
+import { NotificationsPage } from '../pages/NotificationsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 export const AppRoutes: React.FC = () => {
@@ -24,13 +26,15 @@ export const AppRoutes: React.FC = () => {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/map" element={<PublicMap />} />
         <Route path="/report" element={<ReportIssue />} />
+        <Route path="/my-issues" element={<MyIssuesPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/complaint/:id" element={<ComplaintDetails />} />
       </Route>
 
       {/* Citizen Dashboard Routes */}
       <Route element={<DashboardLayout role="citizen" />}>
         <Route path="/dashboard" element={<CitizenDashboard />} />
-        <Route path="/profile" element={<ProfilePage />} />
         {/* We can add /dashboard/reports etc here later */}
       </Route>
 

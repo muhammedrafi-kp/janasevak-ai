@@ -16,7 +16,7 @@ export enum ComplaintPriority {
 export interface IComplaint extends Document {
   title: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[];
 
   location: {
     latitude: number;
@@ -56,10 +56,10 @@ const complaintSchema = new Schema<IComplaint>(
       trim: true,
     },
 
-    imageUrl: {
+    imageUrls: [{
       type: String,
       required: true,
-    },
+    }],
 
     location: {
       latitude: {
