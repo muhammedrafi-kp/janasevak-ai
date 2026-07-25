@@ -4,7 +4,9 @@
 
 ![Janasevak AI Preview](https://via.placeholder.com/1200x600?text=Janasevak+AI+Dashboard)
 
-**Live Demo:** [Janasevak AI Frontend](https://janasevak-ai.vercel.app/)
+**Live Demo Links:**
+*   **User/Citizen Portal:** [https://janasevak-ai.vercel.app/](https://janasevak-ai.vercel.app/)
+*   **Authority Dashboard:** [https://janasevak-ai.vercel.app/authority](https://janasevak-ai.vercel.app/authority)
 
 Janasevak AI is a platform designed to bridge the gap between citizens and authorities. It enables citizens to easily report local issues (like infrastructure damage, waste management, etc.) while providing authorities with a streamlined dashboard to track, manage, and resolve those issues efficiently.
 
