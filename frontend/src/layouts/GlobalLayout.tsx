@@ -1,43 +1,55 @@
-import { Outlet, Link } from 'react-router-dom';
-import { Menu, Bell, MapPin } from 'lucide-react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Menu, Bell, MapPin, ClipboardList, CirclePlus, House } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingChatbot } from '../components/shared/FloatingChatbot';
 
 export const GlobalLayout = () => {
+  const location = useLocation();
+  const navItems = [
+    { label: 'Home', path: '/', icon: House },
+    { label: 'Report Issue', path: '/report', icon: CirclePlus },
+    { label: 'Public Map', path: '/map', icon: ClipboardList },
+  ];
+
   return (
-    <div className="min-h-screen bg-background font-sans text-slate-800 dark:text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-800 dark:text-slate-100 flex flex-col">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:bg-background-dark/80 dark:border-slate-800/50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-50 w-full bg-[#f8fafc]/90 px-4 pt-4 backdrop-blur-md sm:px-6 sm:pt-5">
+        <div className="mx-auto flex h-[70px] max-w-none items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 shadow-sm sm:px-7">
+          <Link to="/" className="flex items-center gap-2.5">
             <motion.div 
               initial={{ rotate: -10, scale: 0.9 }}
               animate={{ rotate: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 200 }}
-              className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-primary text-white shadow-sm shadow-blue-500/30"
             >
               <MapPin size={24} />
             </motion.div>
-            <Link to="/" className="text-xl font-bold tracking-tight">
-              Janasevak<span className="text-primary">AI</span>
-            </Link>
-          </div>
+            <span className="text-xl font-bold tracking-tight text-slate-900">Jana <span className="text-primary">Sevak</span></span>
+          </Link>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <Link to="/" className="hover:text-primary transition-colors">Home</Link>
-            <Link to="/map" className="hover:text-primary transition-colors">Public Map</Link>
-            <Link to="/report" className="hover:text-primary transition-colors">Report Issue</Link>
+          <nav className="hidden h-full items-center gap-2 md:flex">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = location.pathname === item.path;
+              return (
+                <Link key={item.path} to={item.path} className={`relative flex h-full items-center gap-2 px-4 text-sm font-medium transition-colors ${active ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>
+                  <Icon size={19} /> {item.label}
+                  {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="flex items-center gap-4">
-            <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors relative">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button aria-label="Notifications" className="relative rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
               <Bell size={20} className="text-slate-600 dark:text-slate-300" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full border border-white dark:border-background-dark"></span>
             </button>
-            <Link to="/login" className="hidden md:flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-600 transition-colors shadow-sm shadow-primary/20">
+            <Link to="/login" className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary-600 sm:flex">
               Sign In
             </Link>
-            <button className="md:hidden p-2 text-slate-600">
+            <button aria-label="Open navigation menu" className="p-2 text-slate-600 md:hidden">
               <Menu size={24} />
             </button>
           </div>
@@ -50,14 +62,20 @@ export const GlobalLayout = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 py-12 bg-slate-50 dark:bg-background-darkAlt">
-        <div className="container mx-auto px-4 text-center text-slate-500 text-sm">
-          <div className="flex justify-center items-center gap-2 mb-4">
-            <MapPin size={20} className="text-primary" />
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Janasevak AI</span>
+      <footer className="mt-4 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-background-darkAlt">
+        <div className="mx-auto flex max-w-none flex-col gap-5 px-6 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Link to="/" className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200">
+              <MapPin size={19} className="text-primary" /> Jana Sevak
+            </Link>
+            <p className="mt-2">Empowering citizens. Enabling accountability.</p>
           </div>
-          <p>Empowering Citizens. Enabling Accountability.</p>
-          <p className="mt-8 opacity-60">© 2026 Janasevak AI Hackathon Project</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Link to="/report" className="transition-colors hover:text-primary">Report an issue</Link>
+            <Link to="/map" className="transition-colors hover:text-primary">Public map</Link>
+            <Link to="/login" className="transition-colors hover:text-primary">Sign in</Link>
+            <span className="text-slate-400">© 2026 Jana Sevak</span>
+          </div>
         </div>
       </footer>
       

@@ -1,198 +1,157 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, MapPin, CheckCircle, AlertTriangle, Users, BarChart3, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  MessageCircle,
+  ThumbsUp,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 
+type Issue = {
+  id: string;
+  title: string;
+  priority: string;
+  priorityClass: string;
+  status: string;
+  statusClass: string;
+  location: string;
+  time: string;
+  votes: number;
+  comments: number;
+  imageUrl?: string;
+  placeholderImage: string;
+};
+
+const recentIssues: Issue[] = [
+  {
+    id: '1', title: 'Road Damage', priority: 'Critical', priorityClass: 'bg-red-50 text-red-600',
+    status: 'Verified', statusClass: 'bg-amber-50 text-amber-700', location: 'MG Road, 120m away',
+    time: '2 hours ago', votes: 65, comments: 12,
+    placeholderImage: 'https://placehold.co/320x220/e5e7eb/475569?text=Road+damage',
+  },
+  {
+    id: '2', title: 'Water Leakage', priority: 'High', priorityClass: 'bg-orange-50 text-orange-700',
+    status: 'In Progress', statusClass: 'bg-blue-50 text-blue-700', location: 'Park Street, 350m away',
+    time: '5 hours ago', votes: 42, comments: 8,
+    placeholderImage: 'https://placehold.co/320x220/dbeafe/475569?text=Water+leakage',
+  },
+  {
+    id: '3', title: 'Fallen Tree', priority: 'Medium', priorityClass: 'bg-yellow-50 text-yellow-700',
+    status: 'Reported', statusClass: 'bg-violet-50 text-violet-700', location: 'Green Avenue, 450m away',
+    time: '1 day ago', votes: 30, comments: 5,
+    placeholderImage: 'https://placehold.co/320x220/dcfce7/475569?text=Fallen+tree',
+  },
+  {
+    id: '4', title: 'Garbage Overflow', priority: 'Low', priorityClass: 'bg-emerald-50 text-emerald-700',
+    status: 'Completed', statusClass: 'bg-green-50 text-green-700', location: 'Lake View, 600m away',
+    time: '1 day ago', votes: 28, comments: 3,
+    placeholderImage: 'https://placehold.co/320x220/f1f5f9/475569?text=Garbage+overflow',
+  },
+];
+
+const issueImage = (issue: Issue) => issue.imageUrl || issue.placeholderImage;
+
 export const LandingPage = () => {
   return (
-    <div className="flex flex-col w-full overflow-hidden">
-      {/* Background Elements */}
-      <div className="fixed inset-0 z-[-1] bg-slate-50 dark:bg-background-dark overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-accent/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto"
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-medium text-sm mb-6 border border-primary/20">
-              <Sparkles size={16} />
-              <span>AI-Powered Civic Issue Resolution</span>
-            </div>
-            
-            <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-tight">
-              Transform Civic Complaints <br className="hidden lg:block" />
-              into <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Community Action</span>
-            </h1>
-            
-            <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Empowering citizens to report public issues instantly. Our AI categorizes and prioritizes problems while authorities manage and resolve them transparently.
+    <div className="min-h-full bg-[#f8fafc] px-4 py-5 sm:px-6 sm:py-7">
+      <div className="mx-auto max-w-none overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+        <section className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-white via-[#f9fbff] to-blue-50/50 px-6 py-12 sm:px-10 lg:min-h-[326px] lg:px-14 lg:py-16">
+          <div className="relative z-10 max-w-[460px]">
+            <motion.h1
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+              className="text-[34px] font-bold leading-[1.24] tracking-tight text-slate-900 sm:text-[42px]"
+            >
+              See a problem?<br />Let&apos;s fix it together.
+            </motion.h1>
+            <p className="mt-5 max-w-sm text-base leading-7 text-slate-500 sm:text-lg">
+              Report issues in your area and help make our community better.
             </p>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/report">
-                <Button size="lg" className="w-full sm:w-auto gap-2 rounded-full shadow-xl shadow-primary/20">
-                  Report an Issue <ArrowRight size={18} />
-                </Button>
-              </Link>
-              <Link to="/map">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 rounded-full bg-white/50 backdrop-blur-sm">
-                  <MapPin size={18} /> View Public Map
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* Floating UI Elements Mockup */}
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="mt-20 relative max-w-5xl mx-auto"
-          >
-            <div className="aspect-[16/9] md:aspect-[21/9] rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-slate-800/60 shadow-2xl overflow-hidden relative flex items-center justify-center">
-              
-              {/* Map Placeholder Graphic */}
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-300 via-transparent to-transparent"></div>
-              
-              {/* Floating Cards */}
-              <motion.div 
-                animate={{ y: [0, -10, 0] }} 
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-10 left-10 md:top-20 md:left-20 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 flex items-start gap-4 max-w-[240px]"
-              >
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pothole Reported</h4>
-                  <p className="text-xs text-slate-500 mt-1">MG Road • High Priority</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                animate={{ y: [0, 15, 0] }} 
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-10 right-10 md:bottom-20 md:right-32 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 flex items-start gap-4 max-w-[240px]"
-              >
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
-                  <CheckCircle size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Issue Resolved</h4>
-                  <p className="text-xs text-slate-500 mt-1">Streetlight Fixed in 2hrs</p>
-                </div>
-              </motion.div>
-
-              <div className="text-center z-10 p-8">
-                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 text-primary mb-4 shadow-inner">
-                    <MapPin size={40} />
-                 </div>
-                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Interactive Civic Map</h3>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-20 border-y border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-background-darkAlt/40 backdrop-blur-md">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { label: 'Complaints Solved', value: '10,000+', icon: CheckCircle, color: 'text-secondary' },
-              { label: 'Resolution Rate', value: '95%', icon: BarChart3, color: 'text-primary' },
-              { label: 'Departments', value: '50+', icon: Users, color: 'text-accent' },
-              { label: 'Citizens Connected', value: '100K+', icon: MapPin, color: 'text-blue-500' },
-            ].map((stat, i) => (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                key={i} 
-                className="text-center"
-              >
-                <div className={`mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 ${stat.color}`}>
-                  <stat.icon size={24} />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2">{stat.value}</h3>
-                <p className="text-sm text-slate-500 font-medium">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">How Janasevak Works</h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">A seamless four-step process connecting citizens directly to the solution.</p>
+            <Link to="/report" className="mt-7 inline-flex">
+              <Button size="lg" className="gap-2 rounded-lg px-6 shadow-lg shadow-blue-500/20">
+                <MapPin size={19} /> Report New Issue
+              </Button>
+            </Link>
           </div>
 
-          <div className="relative max-w-5xl mx-auto">
-            <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-slate-200 via-primary/50 to-slate-200 dark:from-slate-800 dark:via-primary/50 dark:to-slate-800 -translate-y-1/2 z-0"></div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              {[
-                { step: '1', title: 'Capture Photo', desc: 'Snap a picture of the civic issue' },
-                { step: '2', title: 'AI Analysis', desc: 'Auto-categorization & priority detection' },
-                { step: '3', title: 'Authority Review', desc: 'Assigned to correct department' },
-                { step: '4', title: 'Issue Resolved', desc: 'Real-time updates to citizens' },
-              ].map((item, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.15 }}
-                  key={i} 
-                  className="relative z-10 flex flex-col items-center text-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 group hover:shadow-md transition-all hover:-translate-y-1"
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] overflow-hidden lg:block" aria-hidden="true">
+            <div className="absolute bottom-7 left-8 right-4 h-28 rounded-t-[48%] bg-gradient-to-t from-blue-100/80 to-transparent" />
+            <div className="absolute bottom-12 left-[7%] h-36 w-16 rounded-t-lg bg-blue-100/75 shadow-[34px_20px_0_8px_rgba(219,234,254,.8),78px_0_0_13px_rgba(219,234,254,.65),140px_24px_0_15px_rgba(219,234,254,.7),220px_-12px_0_7px_rgba(219,234,254,.75)]" />
+            <div className="absolute bottom-7 left-[41%] h-[238px] w-[162px] rounded-[23px] border-[6px] border-slate-700 bg-white shadow-xl">
+              <div className="mx-auto mt-3 h-2 w-11 rounded-full bg-slate-100" />
+              <MapPin className="mx-auto mt-12 fill-blue-500 text-blue-500" size={64} strokeWidth={1.6} />
+              <div className="mx-auto mt-7 h-2 w-24 rounded-full bg-slate-200" />
+              <div className="ml-7 mt-3 h-2 w-16 rounded-full bg-slate-200" />
+            </div>
+            <div className="absolute bottom-8 right-[7%] h-20 w-24 rounded-t-full bg-emerald-300/80 shadow-[-42px_27px_0_-5px_rgba(134,239,172,.75)]" />
+            <div className="absolute bottom-8 right-[22%] h-9 w-24 -skew-x-12 border-b-[10px] border-amber-400 bg-amber-300" />
+          </div>
+        </section>
+
+        <div className="grid gap-9 p-6 sm:p-9 lg:grid-cols-[1.42fr_.94fr] lg:p-10">
+          <section>
+            <h2 className="mb-4 text-xl font-semibold text-slate-900">Recent Issues</h2>
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              {recentIssues.map((issue, index) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }}
+                  key={issue.id} className="border-b border-slate-100 last:border-b-0"
                 >
-                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xl mb-4 group-hover:scale-110 transition-transform">
-                    {item.step}
-                  </div>
-                  <h3 className="font-semibold text-lg text-slate-900 dark:text-white mb-2">{item.title}</h3>
-                  <p className="text-sm text-slate-500">{item.desc}</p>
+                  <Link to={`/complaint/${issue.id}`} className="flex gap-3 p-3.5 transition-colors hover:bg-slate-50 sm:gap-5 sm:p-4">
+                    <img src={issueImage(issue)} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover sm:h-[82px] sm:w-[132px]" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">{issue.title}</h3>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${issue.priorityClass}`}>{issue.priority}</span>
+                      </div>
+                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={14} /> {issue.location}</p>
+                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><Clock3 size={14} /> {issue.time}</p>
+                    </div>
+                    <div className="hidden min-w-[112px] flex-col items-end justify-between sm:flex">
+                      <span className={`rounded-lg px-3 py-1.5 text-sm font-medium ${issue.statusClass}`}>{issue.status}</span>
+                      <div className="flex items-center gap-5 text-sm text-slate-500">
+                        <span className="flex items-center gap-1"><ThumbsUp size={18} /> {issue.votes}</span>
+                        <span className="flex items-center gap-1"><MessageCircle size={18} /> {issue.comments}</span>
+                      </div>
+                    </div>
+                  </Link>
                 </motion.div>
               ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 px-4">
-        <div className="container mx-auto max-w-5xl">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-gradient-to-br from-primary to-primary-700 rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden shadow-2xl shadow-primary/20"
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
-            
-            <div className="relative z-10 max-w-2xl mx-auto">
-              <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to make a difference?</h2>
-              <p className="text-primary-100 mb-10 text-lg">Join thousands of citizens actively improving their communities through Janasevak AI.</p>
-              <Link to="/signup">
-                <Button size="lg" className="bg-white text-primary hover:bg-slate-100 rounded-full px-8 text-lg">
-                  Start Reporting Today
-                </Button>
+              <Link to="/map" className="flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium text-primary transition-colors hover:bg-blue-50">
+                View All Issues <ChevronRight size={18} />
               </Link>
             </div>
-          </motion.div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 className="text-xl font-semibold text-slate-900">Issues Near You</h2>
+              <Link to="/map" className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-medium text-primary hover:underline">
+                View on Map <ArrowRight size={15} />
+              </Link>
+            </div>
+            <Link to="/map" aria-label="Open public issues map" className="relative block min-h-[360px] overflow-hidden rounded-xl bg-[#eef1f3] sm:min-h-[430px]">
+              <div className="absolute inset-0 opacity-75 [background-image:linear-gradient(30deg,transparent_46%,#fff_47%,#fff_49%,transparent_50%),linear-gradient(120deg,transparent_46%,#fff_47%,#fff_49%,transparent_50%),linear-gradient(#e1e7ea_1px,transparent_1px),linear-gradient(90deg,#e1e7ea_1px,transparent_1px)] [background-size:105px_82px,125px_94px,22px_22px,22px_22px]" />
+              <div className="absolute -bottom-10 -left-10 h-36 w-56 rotate-12 rounded-full bg-blue-200/80" />
+              <div className="absolute right-4 top-4 h-28 w-32 rounded-3xl bg-emerald-100/80" />
+              <div className="absolute left-[29%] top-[20%] h-7 w-7 rounded-full border-[7px] border-white bg-red-500 shadow" />
+              <div className="absolute right-[30%] top-[22%] h-7 w-7 rounded-full border-[7px] border-white bg-red-500 shadow" />
+              <div className="absolute left-[14%] top-[46%] h-7 w-7 rounded-full border-[7px] border-white bg-amber-400 shadow" />
+              <div className="absolute right-[19%] bottom-[40%] h-7 w-7 rounded-full border-[7px] border-white bg-emerald-500 shadow" />
+              <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400/20 ring-1 ring-blue-400/20" />
+              <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[4px] border-white bg-primary shadow-lg" />
+            </Link>
+          </section>
         </div>
-      </section>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 border-t border-slate-100 px-6 py-4 text-sm text-slate-500">
+          <span className="flex items-center gap-1.5"><Check size={16} className="text-emerald-500" /> Community-powered reporting</span>
+          <span className="flex items-center gap-1.5"><Check size={16} className="text-emerald-500" /> Transparent issue tracking</span>
+        </div>
+      </div>
     </div>
   );
 };
